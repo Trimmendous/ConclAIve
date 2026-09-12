@@ -1,0 +1,191 @@
+/* --- tiles view (live) -------------------------------------------------
+   A column per member: tall portrait, and one speech bubble attached to it
+   showing only what they are saying right now. No history here on purpose —
+   the transcript view holds the record. */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  opacity: 0.55;
+  transition: opacity 200ms ease;
+}
+/* Whoever has the floor is the only fully lit column. */
+.tile.speaking { opacity: 1; }
+
+.figure { position: relative; cursor: pointer; }
+.figure .portrait {
+  border-color: var(--border);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.tile.speaking .figure .portrait {
+  border-color: var(--persona-accent);
+  box-shadow: 0 0 0 1px var(--persona-accent), 0 10px 26px -14px var(--persona-accent);
+}
+
+.cap {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin-top: 7px;
+  min-width: 0;
+}
+.cap .nm {
+  font-weight: 650;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cap .state {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--persona-accent);
+  white-space: nowrap;
+}
+.cap .state.cut { color: var(--warn); }
+/* Time-to-first-token reaches several seconds once a debate has history
+   behind it, so the wait has to look like activity rather than a freeze. */
+.cap .state::after { content: ''; }
+.tile.speaking .cap .state:not(.cut)::after {
+  content: '…';
+  animation: think 1.2s steps(4, end) infinite;
+}
+@keyframes think { 0% { opacity: 0.25; } 50% { opacity: 1; } 100% { opacity: 0.25; } }
+
+.speech-slot { margin-top: 10px; }
+
+.speech {
+  position: relative;
+  background: var(--bubble-bg);
+  border: 1px solid var(--persona-accent);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 13px;
+  box-shadow: var(--shadow);
+}
+/* Tail pointing up at the portrait it belongs to. */
+.speech::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 20px;
+  width: 10px;
+  height: 10px;
+  background: var(--bubble-bg);
+  border-left: 1px solid var(--persona-accent);
+  border-top: 1px solid var(--persona-accent);
+  transform: rotate(45deg);
+}
+.speech .body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.speech .tag {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--persona-accent);
+  margin-bottom: 5px;
+}
+.speech.interjection { border-style: dashed; }
+.speech.streaming .body::after {
+  content: '▋';
+  color: var(--persona-accent);
+  animation: blink 1s steps(2, start) infinite;
+}
+/* Still showing the previous utterance while this member composes the next
+   one — dimmed so it is clearly not what they are saying now. */
+.speech.stale { opacity: 0.45; }
+.speech.stale .body::after { content: none; }
+.speech.cut { border-bottom-style: dashed; border-bottom-color: var(--warn); }
+.speech.cut .body::after { content: ' —'; color: var(--warn); font-weight: 700; animation: none; }
+.speech .cutnote {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--warn);
+}
+.speech .cutnote::before { content: '✂ '; }
+
+@keyframes blink { 50% { opacity: 0; } }
+
+.chip {
+  display: inline-block;
+  font-family: var(--font-code);
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-bottom: 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- transcript view --------------------------------------------------- */
+
+.transcript { max-width: 860px; margin: 0 auto; font-family: var(--font-code); font-size: 13px; }
+.t-entry { margin-bottom: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.t-entry .spk { font-weight: 700; color: var(--persona-accent); }
+.t-entry.cut .txt::after { content: ' —'; color: var(--warn); font-weight: 700; }
+.t-entry .cutnote { color: var(--warn); font-style: italic; }
+.t-round {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--text-faint); font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase; margin: 22px 0 14px;
+}
+.t-round::before, .t-round::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.t-chair { color: var(--text-dim); border-left: 3px solid var(--accent); padding-left: 10px; margin-bottom: 18px; }
+
+/* --- verdict ----------------------------------------------------------- */
+
+.verdict {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 16px;
+  margin: 16px auto 0;
+  max-width: 860px;
+  box-shadow: var(--shadow);
+}
+.verdict h3 {
+  margin: 0 0 9px; font-size: 11px; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--accent);
+}
+.verdict .body { white-space: pre-wrap; font-size: 13.5px; }
+.verdict .lbl { font-weight: 700; }
+
+/* --- prompt bar -------------------------------------------------------- */
+
+.promptbar {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  padding: 11px 16px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+.promptbar textarea {
+  flex: 1; resize: none; min-height: 42px; max-height: 160px;
+  font-family: var(--font-ui); line-height: 1.5;
+}
+.promptbar .side { display: flex; flex-direction: column; gap: 6px; }
+.hint { font-size: 11px; color: var(--text-faint); text-align: right; }
+

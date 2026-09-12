@@ -98,6 +98,14 @@ window.Bridge = (function () {
         "I'd just write the dumb version first and measure it. Modern hardware is fast enough that the naive loop is probably fine, and if it isn't, the profile will point straight at the line that matters instead of the one you guessed.",
         "The complexity budget is real. Every abstraction you add here costs you debugging time later, and I don't see the payoff yet.",
       ],
+      troll: [
+        "Excellent, we should add twelve abstraction layers and name every interface after a mythological animal. If nobody can find the implementation, nobody can prove it is late. The real flaw I am exposing is that 'maintainable' has not been defined by anyone in this room.",
+        "I propose we declare Friday a distributed system and blame eventual consistency when the feature arrives Monday. Terrible plan, obviously—but still more testable than the schedule assumptions everyone else quietly accepted.",
+      ],
+      yolo: [
+        "Build it as a tiny command-line tool wearing a fake browser moustache: one HTML form launches the boring script, then a ridiculous progress siren celebrates success. It should not feel this effective, but the prototype fits in an afternoon and the joke costs almost nothing.",
+        "What if the feature is a bookmarklet, a local JSON file, and one aggressively cheerful button? Zero architecture ceremony, maximum questionable energy, and we can prove the whole path works before lunch.",
+      ],
       _default: [
         "There's a reasonable case on both sides, but the proposal skips the step where you demonstrate the problem is real. Establish that first and the right design tends to become obvious.",
         "I'd push back on the framing. The constraint you're treating as fixed is the one most worth questioning here.",

@@ -4,7 +4,9 @@
 
 ConclAIve is a Tauri desktop app that convenes fictional specialist agents to critique an idea, review a codebase, or debate a decision. Each member has a distinct voice, expertise, interruption style, and three-state animated portrait: stoic, talking, and angry.
 
-The frontend is vanilla HTML, CSS, and JavaScript in `dist/`. The Rust shell in `src-tauri/` runs the selected local AI harness for each member and preserves a separate conversation session for every persona. There is no frontend build step.
+![ConclAIve debate showing three personas and live interruptions](assets/conclaive-demo.gif)
+
+The frontend is vanilla HTML, CSS, and JavaScript in `dist/`. Structural CSS is split into focused modules under `dist/css/`, while every theme is a standalone token file under `dist/css/themes/`. JavaScript is separated by responsibility, including the harness bridge, persona store, debate engine, prompt builder, and views. The Rust shell in `src-tauri/` runs the selected local AI harness for each member and preserves a separate conversation session for every persona. There is no frontend build step.
 
 ## Requirements
 
@@ -66,4 +68,4 @@ ConclAIve is available under the [MIT License](LICENSE).
 
 ## Contributing
 
-Contributions from anyone are welcome. Open an issue for substantial changes, keep persona designs fictional, run both test files, and include a concise description of the behavior you changed.
+Contributions from anyone are welcome. Open an issue for substantial changes, keep persona designs fictional, run all test files, and include a concise description of the behavior you changed.

@@ -1,0 +1,166 @@
+/* --- modal ------------------------------------------------------------- */
+
+.modal { position: fixed; inset: 0; background: var(--scrim); display: grid; place-items: center; padding: 20px; z-index: 50; }
+.modal[hidden] { display: none; }
+.sheet {
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); width: min(620px, 100%); max-height: 88vh; overflow: auto; padding: 20px;
+}
+.sheet h2 { margin: 0 0 16px; font-size: 15px; }
+.field { margin-bottom: 13px; display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 12px; color: var(--text-dim); }
+.field input, .field select, .field textarea { width: 100%; }
+.field textarea { min-height: 120px; resize: vertical; font-family: var(--font-ui); }
+.field .note { font-size: 11px; color: var(--text-faint); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sheet-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+.action-spacer { flex: 1; }
+.flush-note { margin: 0; }
+.err { color: var(--danger); font-size: 12px; min-height: 17px; }
+
+/* --- responsive -------------------------------------------------------- */
+
+/* The roster is a permanent sidebar on wide windows and a dismissable overlay
+   on narrow ones — the Tauri window's 820px minimum falls inside this range. */
+.roster-toggle { display: none; padding: 6px 10px; }
+
+@media (max-width: 880px) {
+  .roster-toggle { display: block; }
+  .roster { position: absolute; left: 0; top: 0; bottom: 0; z-index: 20; box-shadow: var(--shadow); }
+  .roster[hidden] { display: none; }
+  .main { position: relative; }
+  .tiles { grid-template-columns: 1fr; }
+}
+
+/* --- portrait picker --------------------------------------------------- */
+
+.portrait-pick { display: flex; gap: 12px; align-items: center; }
+.portrait-pick-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.portrait-pick-btns button { font-size: 12px; padding: 5px 10px; }
+#pe-portrait-preview .portrait.tall { width: 90px; font-size: 90px; }
+#share-text { min-height: 220px; font-family: var(--font-code); font-size: 12px; }
+
+/* --- stall notice ------------------------------------------------------ */
+
+.notice {
+  border: 1px solid var(--warn);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-dim);
+  padding: 11px 14px;
+  margin: 16px auto 0;
+  max-width: 860px;
+  font-size: 13px;
+}
+.notice strong { color: var(--warn); }
+
+/* --- cut-in control ----------------------------------------------------- */
+/* Only offered while the member actually holds the floor — interrupting
+   someone who is not speaking is meaningless. */
+
+.cut-btn {
+  display: none;
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border-color: var(--persona-accent);
+  color: var(--persona-accent);
+  background: transparent;
+}
+.tile.speaking .cut-btn { display: inline-block; }
+.cut-btn:hover { background: var(--persona-accent); color: var(--on-accent); }
+
+.figure { border-radius: var(--radius); }
+.figure:hover .portrait { border-color: var(--persona-accent); }
+
+#pe-bundled-note {
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+/* --- advanced tuning ---------------------------------------------------- */
+
+.advanced {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 0 12px;
+  margin-bottom: 13px;
+}
+.advanced > summary {
+  cursor: pointer;
+  padding: 10px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  list-style: none;
+}
+.advanced > summary::-webkit-details-marker { display: none; }
+.advanced > summary::before { content: '▸ '; color: var(--accent); }
+.advanced[open] > summary::before { content: '▾ '; }
+.advanced[open] { padding-bottom: 12px; }
+.advanced code { font-family: var(--font-code); font-size: 11px; color: var(--text-dim); }
+
+.slider-field { margin-bottom: 14px; }
+.slider-head { display: flex; align-items: baseline; justify-content: space-between; }
+.slider-head label { font-size: 12px; color: var(--text-dim); }
+.slider-val {
+  font-family: var(--font-code);
+  font-size: 11px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 22px;
+  background: transparent;
+  cursor: pointer;
+  margin: 2px 0;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+}
+input[type="range"]::-moz-range-track {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 17px;
+  height: 17px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  transition: transform 100ms ease;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+}
+input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.15); }
+input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

@@ -234,7 +234,7 @@
         <span class="note">A private reminder appended to every turn, kept close to the model's
           attention. Useful for correcting a habit without rewriting the voice.</span>
       </div>
-      <p class="note" style="margin:0">Temperature and top-p are intentionally omitted because the
+      <p class="note flush-note">Temperature and top-p are intentionally omitted because the
         supported harnesses do not expose them consistently. Effort and model are passed to the
         selected CLI; everything above is behaviour this app implements.</p>
     </details>
@@ -243,7 +243,7 @@
     <div class="err" id="pe-err"></div>
     <div class="sheet-actions">
       <button class="danger" id="pe-delete" hidden>Delete</button>
-      <span class="spacer" style="flex:1"></span>
+      <span class="action-spacer"></span>
       <button id="pe-duplicate" hidden>Duplicate</button>
       <button id="pe-cancel">Cancel</button>
       <button class="primary" id="pe-save">Save</button>
@@ -263,7 +263,7 @@
     <div class="sheet-actions">
       <input type="file" id="share-file" accept="application/json,.json" hidden />
       <button id="share-file-btn">From file…</button>
-      <span style="flex:1"></span>
+      <span class="action-spacer"></span>
       <button id="share-copy">Copy</button>
       <button id="share-cancel">Close</button>
       <button class="primary" id="share-apply">Import</button>

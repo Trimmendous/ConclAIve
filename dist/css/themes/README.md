@@ -8,8 +8,8 @@ Themes are drop-in. To add one:
 That is the whole contract — no code changes. `app.js` reads `index.json`, injects a `<link>` for
 each theme, and builds the picker from it.
 
-Every theme must define the full token set below, because `style.css` only ever refers to tokens
-and never to literal colours. A theme that omits a token inherits whatever the previously applied
+Every theme must define the full token set below, because the structural stylesheets imported by
+`style.css` only refer to tokens and never to literal colours. A theme that omits a token inherits whatever the previously applied
 theme set, which looks like a bug.
 
 `--accent` is the *application* accent (buttons, focus rings). Per-persona colours come from each
