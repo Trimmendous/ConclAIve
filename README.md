@@ -6,8 +6,7 @@ ConclAIve is a Tauri desktop app that convenes fictional specialist agents to cr
 
 ![ConclAIve debate showing three personas and live interruptions](assets/conclaive-demo.gif)
 
-The frontend is vanilla HTML, CSS, and JavaScript in `dist/`. Structural CSS is split into focused modules under `dist/css/`, while every theme is a standalone token file under `dist/css/themes/`. JavaScript is separated by responsibility, including the harness bridge, persona store, debate engine, prompt builder, and views. The Rust shell in `src-tauri/` runs the selected local AI harness for each member and preserves a separate conversation session for every persona. There is no frontend build step.
-
+T
 ## Requirements
 
 - Rust stable with Cargo
