@@ -1,0 +1,32 @@
+/* Matrix — an example of a fully third-party theme: one selector block, one
+   entry in index.json, no code changes anywhere. */
+
+:root[data-theme="matrix"] {
+  color-scheme: dark;
+
+  --radius: 6px;
+  --font-ui: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-code: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --bg: #050a06;
+  --surface: #0b1410;
+  --surface-alt: #101c15;
+  --surface-hover: #16281c;
+  --border: #1e3a26;
+  --border-strong: #2d5334;
+
+  --text: #cdf9d8;
+  --text-dim: #7fae8c;
+  --text-faint: #4f7a5c;
+
+  --accent: #39ff6a;
+  --on-accent: #04170a;
+  --ok: #4dff8a;
+  --warn: #e8e04a;
+  --danger: #ff4d5e;
+
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  --bubble-bg: #0b1410;
+  --bubble-border: #1e3a26;
+  --scrim: rgba(0, 0, 0, 0.65);
+}

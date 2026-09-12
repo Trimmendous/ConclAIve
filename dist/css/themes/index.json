@@ -1,0 +1,5 @@
+[
+  { "id": "dark",   "label": "Dark",   "file": "dark.css",   "scheme": "dark"  },
+  { "id": "light",  "label": "Light",  "file": "light.css",  "scheme": "light" },
+  { "id": "matrix", "label": "Matrix", "file": "matrix.css", "scheme": "dark"  }
+]

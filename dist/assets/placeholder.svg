@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400" role="img" aria-label="No portrait set">
+  <!-- Tall standing silhouette, matching the 3:4 portrait slot in the tiles
+       view. Inherits the persona accent via currentColor. -->
+  <rect width="300" height="400" fill="currentColor" opacity="0.10"/>
+  <circle cx="150" cy="150" r="58" fill="currentColor" opacity="0.5"/>
+  <path d="M150 224c-62 0-112 38-112 86v90h224v-90c0-48-50-86-112-86Z"
+        fill="currentColor" opacity="0.5"/>
+</svg>

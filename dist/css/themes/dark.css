@@ -1,0 +1,60 @@
+/* Dark theme — black-based neutral. */
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --radius: 10px;
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-code: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --bg: #0a0a0b;
+  --surface: #141416;
+  --surface-alt: #1b1b1e;
+  --surface-hover: #26262a;
+  --border: #2a2a2f;
+  --border-strong: #3d3d45;
+
+  --text: #ececf1;
+  --text-dim: #a0a0ac;
+  --text-faint: #6e6e7a;
+
+  --accent: #6c9bff;
+  --on-accent: #07101f;
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --danger: #f87171;
+
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  --bubble-bg: #171719;
+  --bubble-border: #2a2a2f;
+  --scrim: rgba(0, 0, 0, 0.6);
+}
+
+/* The "system" setting: no data-theme attribute, so follow the OS. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+
+    --bg: #0a0a0b;
+    --surface: #141416;
+    --surface-alt: #1b1b1e;
+    --surface-hover: #26262a;
+    --border: #2a2a2f;
+    --border-strong: #3d3d45;
+
+    --text: #ececf1;
+    --text-dim: #a0a0ac;
+    --text-faint: #6e6e7a;
+
+    --accent: #6c9bff;
+    --on-accent: #07101f;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --danger: #f87171;
+
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+    --bubble-bg: #171719;
+    --bubble-border: #2a2a2f;
+    --scrim: rgba(0, 0, 0, 0.6);
+  }
+}

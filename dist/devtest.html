@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ConclAIve — bridge dev harness</title>
+<style>
+  body { font: 14px ui-monospace, monospace; background: #0b1410; color: #cdf9d8;
+         margin: 0; padding: 20px; }
+  h1 { font-size: 15px; color: #39ff6a; margin: 0 0 4px; }
+  .mode { color: #7fae8c; margin-bottom: 16px; }
+  .row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  input, button, select { font: inherit; background: #101c15; color: #cdf9d8;
+         border: 1px solid #1e3a26; border-radius: 6px; padding: 7px 10px; }
+  input { flex: 1; min-width: 260px; }
+  button { cursor: pointer; border-color: #2d5334; }
+  button:hover { background: #16281c; }
+  #out { white-space: pre-wrap; border: 1px solid #1e3a26; border-radius: 8px;
+         padding: 14px; min-height: 160px; background: #050a06; }
+  #log { color: #4f7a5c; font-size: 12px; margin-top: 12px; white-space: pre-wrap;
+         max-height: 220px; overflow: auto; }
+  .caret::after { content: '▋'; color: #39ff6a; animation: b 1s steps(2) infinite; }
+  @keyframes b { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+  <h1>ConclAIve — bridge dev harness</h1>
+  <div class="mode" id="mode"></div>
+  <div class="row">
+    <select id="harness">
+      <option value="codex">Codex</option>
+      <option value="opencode">OpenCode</option>
+      <option value="claude-code">Claude Code</option>
+    </select>
+    <input id="model" value="gpt-5.6-terra" aria-label="Model id" />
+    <select id="who">
+      <option value="kit">Kit Kernel</option>
+      <option value="theo">Theo Lemma</option>
+      <option value="piper">Piper Compile</option>
+    </select>
+    <button id="spawn">spawn</button>
+    <button id="interrupt">interrupt</button>
+    <button id="kill">kill</button>
+  </div>
+  <div class="row">
+    <input id="prompt" value="Is premature optimization really the root of all evil? ~80 words." />
+    <button id="send">send</button>
+  </div>
+  <div id="out"></div>
+  <div id="log"></div>
+
+<script src="js/bridge.js"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const out = $('out'), logEl = $('log');
+  let agentId = null;
+
+  $('mode').textContent = Bridge.isMock
+    ? 'MOCK mode (no API cost) — open under Tauri for the real thing'
+    : 'LIVE mode — using the selected local AI harness';
+
+  $('harness').onchange = () => {
+    $('model').value = {
+      codex: 'gpt-5.6-terra',
+      opencode: 'openai/gpt-5.6-terra',
+      'claude-code': 'sonnet',
+    }[$('harness').value];
+  };
+
+  const log = (m) => { logEl.textContent += m + '\n'; logEl.scrollTop = logEl.scrollHeight; };
+
+  const PROMPTS = {
+    kit: 'You are Kit Kernel, a fictional systems maintainer. Blunt, impatient, allergic to unmeasured claims.',
+    theo: 'You are Theo Lemma, a fictional analyst. Precise, scholarly, careful about hypotheses.',
+    piper: 'You are Piper Compile, a fictional toolmaker. Pragmatic, warm, biased toward shipping and learning.',
+  };
+
+  $('spawn').onclick = async () => {
+    const who = $('who').value;
+    agentId = who + '-' + Date.now().toString(36);
+    try {
+      await Bridge.spawn(agentId, $('harness').value,
+        PROMPTS[who] + ' Keep replies under 100 words.', $('model').value, null, 'medium');
+      log('spawned ' + agentId);
+    } catch (e) { log('SPAWN FAILED: ' + e); }
+  };
+
+  $('send').onclick = async () => {
+    if (!agentId) return log('spawn first');
+    out.textContent = '';
+    out.classList.add('caret');
+    try { await Bridge.send(agentId, $('prompt').value); log('sent'); }
+    catch (e) { log('SEND FAILED: ' + e); }
+  };
+
+  $('interrupt').onclick = () => agentId && Bridge.interrupt(agentId).then(() => log('interrupt sent'));
+  $('kill').onclick = () => agentId && Bridge.kill(agentId).then(() => log('killed ' + agentId));
+
+  Bridge.on('delta', (p) => { out.textContent += p.text; });
+  Bridge.on('tool', (p) => log('tool: ' + p.name + ' ' + p.detail));
+  Bridge.on('turn_end', (p) => {
+    out.classList.remove('caret');
+    if (p.interrupted) out.textContent += ' —[CUT OFF]';
+    log(`turn_end interrupted=${p.interrupted} cost=$${(p.cost_usd || 0).toFixed(4)}`);
+  });
+  Bridge.on('error', (p) => log('stderr: ' + p.message));
+  Bridge.on('exit', (p) => log('exit ' + p.agent_id));
+
+
+  // ?auto=1 — unattended live-mode self-test. Runs the full pipe (spawn →
+  // stream → mid-stream interrupt → in-character reaction) and reports through
+  // the Rust `devlog` command, since the Tauri webview console is not visible
+  // in the terminal.
+  const AUTO = new URLSearchParams(location.search).has('auto');
+  if (AUTO) (async () => {
+    const dev = (m) => {
+      log(m);
+      if (window.__TAURI__) window.__TAURI__.core.invoke('devlog', { message: m }).catch(() => {});
+    };
+    let acc = '', turns = [];
+    Bridge.on('delta', (p) => { acc += p.text; });
+    Bridge.on('turn_end', (p) => turns.push({ interrupted: p.interrupted, cost: p.cost_usd, len: acc.length }));
+
+    const id = 'autotest-kit';
+    dev('AUTOTEST start mock=' + Bridge.isMock);
+    try {
+      await Bridge.spawn(id, $('harness').value,
+        PROMPTS.kit + ' Keep replies under 100 words.', $('model').value, null, 'medium');
+      dev('spawn ok');
+      await Bridge.send(id, 'Explain in 300 words why microkernels are a bad idea. Be thorough.');
+
+      // Wait for real tokens, then cut him off mid-sentence.
+      const t0 = Date.now();
+      while (acc.length < 100 && Date.now() - t0 < 45000) await new Promise(r => setTimeout(r, 100));
+      const partial = acc;
+      dev('streamed ' + partial.length + ' chars before interrupt');
+      await Bridge.interrupt(id);
+
+      while (turns.length < 1 && Date.now() - t0 < 60000) await new Promise(r => setTimeout(r, 100));
+      dev('turn1 interrupted=' + (turns[0] && turns[0].interrupted) + ' cost=$' + ((turns[0] || {}).cost || 0).toFixed(4));
+
+      // The interrupted persona is told they were cut off and reacts in character.
+      acc = '';
+      await Bridge.send(id,
+        '[INTERRUPTED] Piper Compile cut you off mid-sentence.\n' +
+        'Your unfinished words were: "' + partial.slice(-120) + '"\n' +
+        'Piper Compile said: "Microkernels isolate faults, Kit."\n' +
+        'React the way you would to being interrupted (style: irritated), then answer in ONE sentence.');
+
+      while (turns.length < 2 && Date.now() - t0 < 120000) await new Promise(r => setTimeout(r, 100));
+      dev('turn2 interrupted=' + (turns[1] && turns[1].interrupted) + ' reaction=' + JSON.stringify(acc.slice(0, 180)));
+      dev('AUTOTEST ' + (turns.length >= 2 && turns[0].interrupted && !turns[1].interrupted && acc.length > 20 ? 'PASS' : 'FAIL'));
+    } catch (e) {
+      dev('AUTOTEST ERROR ' + e);
+    }
+    await Bridge.killAll();
+    dev('AUTOTEST done');
+  })();
+
+  window.addEventListener('beforeunload', () => Bridge.killAll());
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Rust/Tauri build output
+src-tauri/target/
+
+# Generated design and language caches
+__pycache__/
+*.py[cod]
+
+# Local editor and operating-system files
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Local environment and logs
+.env
+.env.*
+*.log

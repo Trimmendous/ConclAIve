@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ConclAIve</title>
+<link rel="icon" type="image/png" href="assets/conclaive-icon.png" />
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <button id="btn-roster" class="roster-toggle" aria-label="Toggle council roster">☰</button>
+  <div class="brand">Concl<span class="dot">AI</span>ve</div>
+
+  <div>
+    <label for="mode-seg">Mode</label>
+    <span class="seg" id="mode-seg">
+      <button data-mode="debate" aria-pressed="true">Debate</button>
+      <button data-mode="solo" aria-pressed="false">Solo critique</button>
+    </span>
+  </div>
+
+  <div>
+    <label for="view-seg">View</label>
+    <span class="seg" id="view-seg">
+      <button data-view="live" aria-pressed="true">Tiles</button>
+      <button data-view="transcript" aria-pressed="false">Transcript</button>
+    </span>
+  </div>
+
+  <span class="spacer"></span>
+
+  <span class="badge-mock" id="mock-badge" hidden>MOCK</span>
+  <div class="meter" id="meter">session 0 tokens · <b>reported $0.0000</b></div>
+
+  <div>
+    <label for="theme">Theme</label>
+    <select id="theme"><option value="system">System</option></select>
+  </div>
+
+  <button id="btn-settings">Settings</button>
+</header>
+
+<div class="main">
+  <aside class="roster" id="roster">
+    <h2>ConclAIve members <span id="roster-count"></span></h2>
+    <div class="roster-actions">
+      <button id="btn-all">Select all</button>
+      <button id="btn-none">Deselect all</button>
+    </div>
+    <div class="roster-actions">
+      <button id="btn-new-persona">+ New</button>
+      <button id="btn-export">Export</button>
+      <button id="btn-import">Import</button>
+    </div>
+    <div id="roster-list"></div>
+  </aside>
+
+  <section class="stage">
+    <div class="stage-body" id="stage">
+      <div class="empty">
+        <div>
+          <h3>No session yet</h3>
+          <p>Pick your council on the left, put something in front of them below, and convene.
+             In Debate mode they argue across several rounds and cut each other off; in Solo
+             critique each one reviews your prompt independently.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="promptbar">
+      <textarea id="prompt" rows="2"
+        placeholder="What do you want the council to examine? (Ctrl+Enter to convene)"></textarea>
+      <div class="side">
+        <button class="primary" id="btn-convene">Convene</button>
+        <button id="btn-suggest" title="Pick the members whose speciality this question touches">Suggest</button>
+        <button id="btn-stop" disabled>Stop</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- settings -->
+<div class="modal" id="modal-settings" hidden>
+  <div class="sheet">
+    <h2>Settings</h2>
+    <div class="row2">
+      <div class="field">
+        <label for="set-harness">AI harness</label>
+        <select id="set-harness">
+          <option value="codex">Codex</option>
+          <option value="opencode">OpenCode</option>
+          <option value="claude-code">Claude Code</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="set-default-model">Default model</label>
+        <input id="set-default-model" type="text" list="set-model-options"
+          placeholder="Model id used by the selected harness" />
+        <datalist id="set-model-options"></datalist>
+      </div>
+    </div>
+    <p class="note">The selected CLI must be installed and signed in. Model ids are passed
+      through unchanged, so provider-specific ids work without an app update. Codex sessions
+      authenticated through ChatGPT report token usage but not a per-turn dollar charge; the
+      header therefore labels dollar amounts as reported cost.</p>
+    <div class="row2">
+      <div class="field">
+        <label for="set-rounds">Debate rounds</label>
+        <select id="set-rounds">
+          <option>1</option><option>2</option><option selected>3</option>
+          <option>4</option><option>5</option><option>6</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="set-bargein">Barge-in</label>
+        <select id="set-bargein">
+          <option value="on" selected>On — members cut each other off</option>
+          <option value="off">Off — everyone finishes their turn</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="set-codebase">Codebase access (read-only)</label>
+      <input type="text" id="set-codebase" placeholder="/home/you/Code/some-project — leave empty for discussion only" />
+      <span class="note">When set, members may Read/Glob/Grep that directory and cite real
+        file:line. ConclAIve sessions are restricted to read/search operations; leave this empty
+        for pure discussion.</span>
+    </div>
+
+    <div class="field">
+      <label for="set-verdict">Closing verdict</label>
+      <select id="set-verdict">
+        <option value="on" selected>On — a neutral clerk summarises the outcome</option>
+        <option value="off">Off — transcript only</option>
+      </select>
+    </div>
+
+    <div class="sheet-actions">
+      <button class="primary" id="set-close">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- persona editor -->
+<div class="modal" id="modal-persona" hidden>
+  <div class="sheet">
+    <h2 id="pe-title">New council member</h2>
+    <div class="row2">
+      <div class="field">
+        <label for="pe-name">Name</label>
+        <input type="text" id="pe-name" placeholder="Rowan Cache" />
+      </div>
+      <div class="field">
+        <label for="pe-id">Id</label>
+        <input type="text" id="pe-id" placeholder="rowan-cache" />
+      </div>
+    </div>
+    <div class="field">
+      <label for="pe-title-in">Title</label>
+      <input type="text" id="pe-title-in" placeholder="Systems cartographer" />
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="pe-accent">Accent colour</label>
+        <input type="text" id="pe-accent" placeholder="#8b8b96" />
+      </div>
+      <div class="field">
+        <label for="pe-portrait-file">Portrait</label>
+        <div class="portrait-pick">
+          <div id="pe-portrait-preview"></div>
+          <div class="portrait-pick-btns">
+            <input type="file" id="pe-portrait-file" accept="image/*" hidden />
+            <button type="button" id="pe-portrait-browse">Choose image…</button>
+            <button type="button" id="pe-portrait-clear">Clear</button>
+          </div>
+        </div>
+        <input type="hidden" id="pe-portrait" />
+        <span class="note">Any image on disk. It is scaled to 256&times;256 and stored inside the
+          persona, so the pack stays portable — moving or deleting the original file will not
+          break it. Blank shows a monogram in the accent colour.</span>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="pe-harness">AI harness</label>
+        <select id="pe-harness"></select>
+      </div>
+      <div class="field">
+        <label for="pe-model">Model</label>
+        <select id="pe-model"></select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="pe-style">When interrupted</label>
+        <select id="pe-style"></select>
+      </div>
+      <div class="field">
+        <label for="pe-interrupts">Interrupts others</label>
+        <select id="pe-interrupts">
+          <option value="yes" selected>Yes — will cut people off</option>
+          <option value="no">No — waits their turn</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="pe-prompt">Voice — who is this person?</label>
+      <textarea id="pe-prompt" placeholder="You are Rowan Cache. You think in terms of…"></textarea>
+      <span class="note">Describe only the person: how they think, what they care about, how they
+        argue. The council rules, brevity and codebase instructions are added automatically.</span>
+    </div>
+    <details class="advanced" id="pe-advanced">
+      <summary>Advanced tuning</summary>
+      <div id="pe-sliders"></div>
+      <div class="field">
+        <label for="pe-effort">Thinking effort</label>
+        <select id="pe-effort"></select>
+        <span class="note">How hard this member thinks per turn. Higher levels generally take more time and usage.</span>
+      </div>
+      <div class="field">
+        <label for="pe-examples">Example lines</label>
+        <textarea id="pe-examples" rows="4"
+          placeholder="Show me the profile before you show me the rewrite.&#10;That is not a bottleneck, that is a guess with a stopwatch."></textarea>
+        <span class="note">Two or three lines in their voice. Showing the model how they talk does more
+          for fidelity than describing them — it is the single most effective field here.</span>
+      </div>
+      <div class="field">
+        <label for="pe-note">Director's note</label>
+        <textarea id="pe-note" rows="2"
+          placeholder="Stop conceding so quickly. Push back at least once per round."></textarea>
+        <span class="note">A private reminder appended to every turn, kept close to the model's
+          attention. Useful for correcting a habit without rewriting the voice.</span>
+      </div>
+      <p class="note" style="margin:0">Temperature and top-p are intentionally omitted because the
+        supported harnesses do not expose them consistently. Effort and model are passed to the
+        selected CLI; everything above is behaviour this app implements.</p>
+    </details>
+
+    <div class="note" id="pe-bundled-note" hidden></div>
+    <div class="err" id="pe-err"></div>
+    <div class="sheet-actions">
+      <button class="danger" id="pe-delete" hidden>Delete</button>
+      <span class="spacer" style="flex:1"></span>
+      <button id="pe-duplicate" hidden>Duplicate</button>
+      <button id="pe-cancel">Cancel</button>
+      <button class="primary" id="pe-save">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="modal-share" hidden>
+  <div class="sheet">
+    <h2 id="share-title">Share personas</h2>
+    <div class="field">
+      <label for="share-text" id="share-label">Persona JSON</label>
+      <textarea id="share-text" spellcheck="false"></textarea>
+      <span class="note" id="share-note"></span>
+    </div>
+    <div class="err" id="share-err"></div>
+    <div class="sheet-actions">
+      <input type="file" id="share-file" accept="application/json,.json" hidden />
+      <button id="share-file-btn">From file…</button>
+      <span style="flex:1"></span>
+      <button id="share-copy">Copy</button>
+      <button id="share-cancel">Close</button>
+      <button class="primary" id="share-apply">Import</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/bridge.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/personas.js"></script>
+<script src="js/prompt.js"></script>
+<script src="js/council.js"></script>
+<script src="js/views/live.js"></script>
+<script src="js/views/transcript.js"></script>
+<script src="js/app.js"></script>
+<script src="js/autotest.js"></script>
+</body>
+</html>

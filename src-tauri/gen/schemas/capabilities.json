@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"ConclAIve needs core event listening so the frontend can receive council:// streaming events emitted from the agent supervisor threads.","local":true,"windows":["main"],"permissions":["core:default"]}}

@@ -1,0 +1,34 @@
+/* Light theme — white-based neutral.
+   Also supplies the bare :root defaults, which is what the "system" setting
+   falls back to when the OS preference is light (or unknown). */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --radius: 10px;
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-code: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --bg: #ffffff;
+  --surface: #f7f7f8;
+  --surface-alt: #efeff1;
+  --surface-hover: #e6e6e9;
+  --border: #dcdce1;
+  --border-strong: #bfbfc7;
+
+  --text: #17171a;
+  --text-dim: #5b5b66;
+  --text-faint: #8c8c99;
+
+  --accent: #2f6bff;
+  --on-accent: #ffffff;
+  --ok: #15803d;
+  --warn: #a16207;
+  --danger: #c02626;
+
+  --shadow: 0 6px 20px rgba(20, 20, 30, 0.10);
+  --bubble-bg: #ffffff;
+  --bubble-border: #e2e2e7;
+  --scrim: rgba(20, 20, 30, 0.38);
+}
