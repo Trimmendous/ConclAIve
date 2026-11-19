@@ -15,3 +15,13 @@ Thumbs.db
 .env
 .env.*
 *.log
+
+# Tauri-generated files (rebuilt on every build)
+src-tauri/gen/
+
+# Mobile icon sets from `tauri icon` (desktop-only app)
+src-tauri/icons/android/
+src-tauri/icons/ios/
+
+# Generated portrait-base renders (run design/build_silhouette.py)
+design/out/
