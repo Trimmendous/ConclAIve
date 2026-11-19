@@ -544,17 +544,23 @@
     );
   }
 
-  function renderVerdict(text) {
-    if (view === ViewTranscript) return ViewTranscript.onVerdict(text);
-    let box = document.getElementById('verdict-box');
-    if (!box) {
-      box = el('div', 'verdict');
-      box.id = 'verdict-box';
-      box.appendChild(el('h3', null, 'ConclAIve verdict'));
-      box.appendChild(el('div', 'body'));
-      $('stage').appendChild(box);
-    }
-    box.querySelector('.body').textContent = text;
+  // Both views mount into #stage, so one card there serves either of them.
+  function renderVerdict(text, note) {
+    UI.showVerdict($('stage'), text, note);
+  }
+
+  let synthesizing = false;
+
+  function syncSynth() {
+    $('btn-synth').disabled = running || synthesizing || !Council.canSynthesize();
+    $('btn-synth').textContent = (Council.getSession() || {}).verdict ? 'Re-synthesize' : 'Synthesize';
+    // Stop also cancels a synthesis the chair asked for after the council ended.
+    $('btn-stop').disabled = !running && !synthesizing;
+  }
+
+  async function synthesize() {
+    if (running || synthesizing) return;
+    await Council.synthesize();
   }
 
   // --- session ------------------------------------------------------------
@@ -574,7 +580,7 @@
 
     running = true;
     $('btn-convene').disabled = true;
-    $('btn-stop').disabled = false;
+    syncSynth();
     renderRoster();
 
     const session = {
@@ -610,7 +616,7 @@
     } finally {
       running = false;
       $('btn-convene').disabled = false;
-      $('btn-stop').disabled = true;
+      syncSynth();
       renderRoster();
     }
   }
@@ -619,7 +625,7 @@
     await Council.adjourn();
     running = false;
     $('btn-convene').disabled = false;
-    $('btn-stop').disabled = true;
+    syncSynth();
     renderRoster();
   }
 
@@ -655,8 +661,20 @@
       note.appendChild(document.createTextNode(message));
       $('stage').appendChild(note);
     });
+    Council.on('verdictStart', () => {
+      synthesizing = true;
+      renderVerdict('', 'The clerk is writing the synthesis…');
+      syncSynth();
+    });
     Council.on('verdictDelta', ({ text }) => renderVerdict(text));
     Council.on('verdict', ({ text }) => renderVerdict(text));
+    Council.on('verdictError', ({ message }) =>
+      renderVerdict('', `Synthesis failed: ${message}. Try Re-synthesize, or check the harness in Settings.`)
+    );
+    Council.on('verdictEnd', () => {
+      synthesizing = false;
+      syncSynth();
+    });
   }
 
   function wireUI() {
@@ -669,6 +687,7 @@
 
     $('btn-convene').onclick = convene;
     $('btn-stop').onclick = stop;
+    $('btn-synth').onclick = synthesize;
     $('prompt').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); convene(); }
     });

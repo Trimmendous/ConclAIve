@@ -76,7 +76,7 @@ window.Bridge = (function () {
     const CORPUS = {
       // The neutral clerk that closes a debate; keyed off the 'council-clerk' id.
       clerk: [
-        'AGREED: everyone accepts that the problem should be demonstrated with a measurement before any redesign is attempted.\nSPLIT: Kit and Milo want the simplest version shipped and profiled; Theo and Clara want the invariant stated and checked first. Piper sits closer to shipping but wants the failure modes watched.\nPATH: write the naive implementation, profile it against a realistic workload, and only then decide whether the abstraction earns its cost.',
+        'AGREED: everyone accepts that the problem should be demonstrated with a measurement before any redesign is attempted.\nSPLIT: Kit and Milo want the simplest version shipped and profiled; Theo and Clara want the invariant stated and checked first. Piper sits closer to shipping but wants the failure modes watched.\nRISKS: Theo warned the logarithmic bound only holds for uniformly distributed keys; Kit warned the new indirection layer will outlive anyone who understands it.\nDECISION: write the naive implementation, profile it against a realistic workload, and only then decide whether the abstraction earns its cost.\nOPEN: what workload counts as realistic, and what the key distribution looks like in production.',
       ],
       kit: [
         "This is a solution in search of a problem. You haven't measured anything, you've just decided the abstraction is pretty. Show me a profile where this is the bottleneck and then we can talk about rewriting it.",

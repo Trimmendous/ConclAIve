@@ -50,6 +50,7 @@ Run the deterministic tests with:
 node test/dynamics.test.js
 node test/matching.test.js
 node test/harness.test.js
+node test/verdict.test.js
 ```
 
 ## Future

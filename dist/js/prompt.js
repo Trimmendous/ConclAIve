@@ -185,23 +185,65 @@ window.Prompt = (function () {
     ].join('\n');
   }
 
-  /** Neutral, non-persona summariser used for the closing verdict. */
-  function verdictSystem() {
+  // The synthesis is a fixed set of labelled sections, in this order. A fixed
+  // shape is what stops a summary dissolving into one agreeable paragraph, and
+  // it lets the UI set each label apart without trusting model-written markup.
+  const VERDICT_SECTIONS = [
+    ['AGREED', 'what the members actually converged on, if anything. Say "Nothing" if they did not.'],
+    ['SPLIT', 'where they genuinely disagreed, naming who held which position.'],
+    ['RISKS', 'the concrete risks or failure modes raised, attributed to whoever raised them.'],
+    ['DECISION', 'the course of action the discussion best supports, stated as a recommendation the chair could act on.'],
+    ['OPEN', 'the questions that would still have to be answered before acting, if any.'],
+  ];
+
+  /** Neutral, non-persona summariser used for the closing synthesis. */
+  function verdictSystem(mode) {
+    const independent = mode === 'solo';
     return [
-      'You are a neutral clerk recording the outcome of a council debate. You are not a member of it and you have no opinions of your own.',
+      independent
+        ? 'You are a neutral clerk combining independent reviews into one synthesis. The reviewers never saw each other\'s work. You are not one of them and you have no opinions of your own.'
+        : 'You are a neutral clerk recording the outcome of a council debate. You are not a member of it and you have no opinions of your own.',
       '',
-      'Read the transcript and report, in plain prose and under 180 words total:',
-      '- AGREED: what the members actually converged on, if anything.',
-      '- SPLIT: where they genuinely disagreed, naming who held which position.',
-      '- PATH: the course of action the transcript best supports.',
+      'Read what was said and report, in plain prose and under 260 words total:',
+      ...VERDICT_SECTIONS.map(([label, what]) => `- ${label}: ${what}`),
       '',
-      'Represent the disagreement faithfully — do not flatten a real split into false consensus, and do not invent agreement that was not reached. Use exactly the three labels AGREED:, SPLIT: and PATH:, each starting a new line. Never mention being an AI or a model.',
+      independent
+        ? 'Agreement between independent reviewers is strong evidence, so call it out; a point only one reviewer raised is not consensus.'
+        : 'A member who was cut off mid-sentence still holds the position they were arguing.',
+      'Represent disagreement faithfully — do not flatten a real split into false consensus, and do not invent agreement that was not reached. Never add a recommendation the members did not support.',
+      `Use exactly these labels, in this order, each starting a new line: ${VERDICT_SECTIONS.map(([l]) => `${l}:`).join(' ')}. No headings, bullets or other formatting. Never mention being an AI or a model.`,
     ].join('\n');
   }
 
   function verdictRequest(chairPrompt, transcript) {
-    const body = transcript.map((e) => `${e.name}: ${e.text}`).join('\n\n');
+    const body = transcript
+      .map((e) => `${e.name}${e.cutOff ? ' (cut off mid-sentence)' : ''}: ${e.text}`)
+      .join('\n\n');
     return `The chair asked:\n\n${chairPrompt}\n\nTranscript:\n\n${body}\n\nRecord the outcome.`;
+  }
+
+  /**
+   * Splits a (possibly still streaming) synthesis into labelled sections.
+   * Text before the first recognised label is kept as an unlabelled section so
+   * nothing the clerk wrote is silently dropped.
+   */
+  function parseVerdict(text) {
+    const labels = VERDICT_SECTIONS.map(([l]) => l).join('|');
+    const re = new RegExp(`^\\s*\\**(${labels})\\**\\s*:\\s*`, 'i');
+    const sections = [];
+    String(text || '').split('\n').forEach((line) => {
+      const m = re.exec(line);
+      if (m) {
+        sections.push({ label: m[1].toUpperCase(), body: line.slice(m[0].length) });
+      } else if (sections.length) {
+        const last = sections[sections.length - 1];
+        last.body += (last.body ? '\n' : '') + line;
+      } else if (line.trim()) {
+        sections.push({ label: null, body: line });
+      }
+    });
+    sections.forEach((s) => { s.body = s.body.trim(); });
+    return sections;
   }
 
   return {
@@ -213,6 +255,8 @@ window.Prompt = (function () {
     interruption,
     verdictSystem,
     verdictRequest,
+    parseVerdict,
+    VERDICT_SECTIONS,
     INTERRUPT_GUIDANCE,
   };
 })();

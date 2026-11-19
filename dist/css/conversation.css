@@ -169,7 +169,10 @@
   text-transform: uppercase; color: var(--accent);
 }
 .verdict .body { white-space: pre-wrap; font-size: 13.5px; }
+.verdict .body p { margin: 0 0 8px; }
+.verdict .body p:last-child { margin-bottom: 0; }
 .verdict .lbl { font-weight: 700; }
+.verdict .v-note { color: var(--text-faint); font-style: italic; }
 
 /* --- prompt bar -------------------------------------------------------- */
 

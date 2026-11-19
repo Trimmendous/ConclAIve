@@ -70,11 +70,8 @@ window.ViewTranscript = (function () {
     }
   }
 
-  function onVerdict(text) {
-    const box = el('div', 'verdict');
-    box.appendChild(el('h3', null, 'ConclAIve verdict'));
-    box.appendChild(el('div', 'body', text));
-    root.appendChild(box);
+  function onVerdict(text, note) {
+    UI.showVerdict(root, text, note);
   }
 
   return { mount, onEntry, onDelta, onEntryEnd, onVerdict, onState() {}, onTool() {} };

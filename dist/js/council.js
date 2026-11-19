@@ -553,51 +553,87 @@ window.Council = (function () {
     }
   }
 
+  // --- synthesis ----------------------------------------------------------
+
+  const VERDICT_ID = 'council-clerk';
+  // Set while the clerk is writing. Calling it abandons the synthesis; adjourn
+  // relies on this, because a killed process never reports turn_end and the
+  // wait below would otherwise hang for good.
+  let verdictAbort = null;
+
+  function spokenEntries(s) {
+    return s.entries.filter((e) => e.done && e.text && e.text.trim());
+  }
+
+  /** True when a finished or stopped session can be (re-)synthesized. */
+  function canSynthesize() {
+    return !!session && !session.running && !verdictAbort && spokenEntries(session).length > 0;
+  }
+
+  /** The chair asking for a synthesis by hand: after a stop, or to redo one. */
+  async function synthesize() {
+    if (!canSynthesize()) return false;
+    await runVerdict(session.opts);
+    return true;
+  }
+
   /** A neutral clerk, not a council member — spawned only for the summary. */
   async function runVerdict(opts) {
-    const VERDICT_ID = 'council-clerk';
-    emit('verdictStart', {});
-    try {
-      await Bridge.spawn(
-        VERDICT_ID,
-        opts.harness,
-        Prompt.verdictSystem(),
-        opts.defaultModel,
-        null,
-        'medium'
-      );
-      const transcript = session.entries
-        .filter((e) => e.text && e.text.trim())
-        .map((e) => ({ name: e.name, text: e.text }));
+    if (verdictAbort) return;
+    const s = session;
+    const transcript = spokenEntries(s).map((e) => ({ name: e.name, text: e.text, cutOff: e.cutOff }));
+    if (!transcript.length) return;
 
-      const text = await new Promise((resolve) => {
-        let buf = '';
-        const offD = Bridge.on('delta', (p) => {
+    s.verdict = null;
+    let aborted = false;
+    const waiting = new Promise((resolve) => {
+      verdictAbort = () => { aborted = true; resolve({ aborted: true }); };
+    });
+    emit('verdictStart', {});
+    let offD = () => {};
+    let offE = () => {};
+    try {
+      // A clerk left behind by an earlier, abandoned attempt would make spawn fail.
+      await Bridge.kill(VERDICT_ID).catch(() => {});
+      await Bridge.spawn(VERDICT_ID, opts.harness, Prompt.verdictSystem(s.mode), opts.defaultModel, null, 'medium');
+
+      let buf = '';
+      const finished = new Promise((resolve, reject) => {
+        offD = Bridge.on('delta', (p) => {
           if (p.agent_id === VERDICT_ID) { buf += p.text; emit('verdictDelta', { text: buf }); }
         });
-        const offE = Bridge.on('turn_end', (p) => {
+        offE = Bridge.on('turn_end', (p) => {
           if (p.agent_id !== VERDICT_ID) return;
-          session.costUsd += p.cost_usd || 0;
-          session.inputTokens += p.input_tokens || 0;
-          session.cachedInputTokens += p.cached_input_tokens || 0;
-          session.outputTokens += p.output_tokens || 0;
-          emitUsage();
-          offD(); offE();
-          resolve((p.text && p.text.trim()) || buf);
+          s.costUsd += p.cost_usd || 0;
+          s.inputTokens += p.input_tokens || 0;
+          s.cachedInputTokens += p.cached_input_tokens || 0;
+          s.outputTokens += p.output_tokens || 0;
+          if (session === s) emitUsage();
+          const text = (p.text && p.text.trim()) || buf.trim();
+          if (p.is_error || !text) reject(new Error(text || 'the clerk returned nothing'));
+          else resolve({ text });
         });
-        Bridge.send(VERDICT_ID, Prompt.verdictRequest(session.chairPrompt, transcript));
+        Bridge.send(VERDICT_ID, Prompt.verdictRequest(s.chairPrompt, transcript)).catch(reject);
       });
 
-      session.verdict = text;
-      emit('verdict', { text });
+      const result = await Promise.race([finished, waiting]);
+      if (result.aborted || session !== s) return;
+      s.verdict = result.text;
+      emit('verdict', { text: result.text });
     } catch (e) {
-      console.error('verdict failed', e);
+      console.error('synthesis failed', e);
+      if (!aborted && session === s) emit('verdictError', { message: String((e && e.message) || e) });
     } finally {
+      offD();
+      offE();
+      verdictAbort = null;
+      emit('verdictEnd', {});
       await Bridge.kill(VERDICT_ID).catch(() => {});
     }
   }
 
   async function adjourn() {
+    if (verdictAbort) verdictAbort();
     if (session) session.running = false;
     if (roundResolve) { const r = roundResolve; roundResolve = null; r(); }
     runtimes.forEach((rt) => { rt.active = false; });
@@ -626,5 +662,5 @@ window.Council = (function () {
     setSession(s) { session = s; },
   };
 
-  return { on, convene, adjourn, chairInterrupt, getSession, __test };
+  return { on, convene, adjourn, chairInterrupt, getSession, synthesize, canSynthesize, __test };
 })();

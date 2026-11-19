@@ -72,5 +72,38 @@ window.UI = (function () {
       : 'stoic';
   }
 
-  return { el, initials, portrait, setPortraitExpression, inkOn };
+  const VERDICT_TITLES = {
+    AGREED: 'Agreed',
+    SPLIT: 'Split',
+    RISKS: 'Risks',
+    DECISION: 'Decision',
+    OPEN: 'Open questions',
+  };
+
+  /**
+   * Finds or creates the one verdict card in `container` and redraws it. It is
+   * redrawn on every streamed chunk, so it must never append a second card.
+   * `note` is a status line (in progress, failed) shown above the sections.
+   */
+  function showVerdict(container, text, note) {
+    let box = Array.from(container.children).find((n) => n.classList.contains('verdict'));
+    if (!box) {
+      box = el('div', 'verdict');
+      box.appendChild(el('h3', null, 'ConclAIve verdict'));
+      box.appendChild(el('div', 'body'));
+      container.appendChild(box);
+    }
+    const body = box.querySelector('.body');
+    body.textContent = '';
+    if (note) body.appendChild(el('p', 'v-note', note));
+    Prompt.parseVerdict(text).forEach((section) => {
+      const p = el('p', 'v-sec');
+      if (section.label) p.appendChild(el('span', 'lbl', `${VERDICT_TITLES[section.label]}: `));
+      p.appendChild(document.createTextNode(section.body));
+      body.appendChild(p);
+    });
+    return box;
+  }
+
+  return { el, initials, portrait, setPortraitExpression, inkOn, showVerdict };
 })();
