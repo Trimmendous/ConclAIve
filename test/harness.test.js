@@ -32,5 +32,17 @@ expect('Claude model override is isolated', P.effectiveModel(persona, 'claude-co
 expect('Codex model override is isolated', P.effectiveModel(persona, 'codex'), 'gpt-6-astra');
 expect('OpenCode still uses its default', P.effectiveModel(persona, 'opencode'), P.DEFAULT_MODELS.opencode);
 
+// Only Claude Code installed: defaults and stale overrides must land on it.
+P.setInstalled({ codex: false, opencode: false, 'claude-code': true });
+expect('missing default falls back to an installed harness', P.usableHarness('codex'), 'claude-code');
+P.setHarness('other-persona', 'opencode');
+expect('override to a missing CLI follows the council default',
+  P.effectiveHarness({ id: 'other-persona' }, 'codex'), 'claude-code');
+expect('override to an installed CLI is kept', P.effectiveHarness(persona, 'codex'), 'claude-code');
+P.setInstalled({ codex: true, opencode: false, 'claude-code': true });
+expect('installed default is respected', P.usableHarness('codex'), 'codex');
+P.setInstalled(null);
+expect('unknown status hides nothing', P.isInstalled('opencode'), true);
+
 console.log(failed ? `\n${failed} FAILED` : '\nall harness tests passed');
 process.exit(failed ? 1 : 0);

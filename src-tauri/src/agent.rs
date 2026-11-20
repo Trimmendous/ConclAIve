@@ -87,26 +87,72 @@ fn valid_model(model: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || "-._/:@".contains(c))
 }
 
-/// Desktop apps do not always inherit the interactive shell's PATH. Check it
-/// first, then the common per-user CLI install locations.
-fn executable_path(name: &str) -> Option<PathBuf> {
-    if let Some(path) = std::env::var_os("PATH") {
-        for dir in std::env::split_paths(&path) {
-            let candidate = dir.join(name);
-            if candidate.is_file() {
-                return Some(candidate);
-            }
-        }
-    }
+/// Where the supported CLIs are commonly installed. An app launched from
+/// Finder or the Dock gets launchd's minimal PATH (/usr/bin:/bin:...), not the
+/// user's shell PATH, so without these a packaged build finds nothing that was
+/// installed with Homebrew, npm, nvm, Bun or a vendor installer.
+fn search_dirs() -> Vec<PathBuf> {
+    let mut dirs: Vec<PathBuf> = std::env::var_os("PATH")
+        .map(|path| std::env::split_paths(&path).collect())
+        .unwrap_or_default();
 
-    let home = std::env::var_os("HOME").map(PathBuf::from)?;
-    for relative in [".local/bin", ".npm-global/bin", ".bun/bin"] {
-        let candidate = home.join(relative).join(name);
-        if candidate.is_file() {
-            return Some(candidate);
+    if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
+        for relative in [
+            ".local/bin",
+            ".claude/local",
+            ".opencode/bin",
+            ".npm-global/bin",
+            ".bun/bin",
+            ".volta/bin",
+            ".cargo/bin",
+        ] {
+            dirs.push(home.join(relative));
+        }
+        // nvm keeps one bin directory per installed Node version.
+        if let Ok(versions) = std::fs::read_dir(home.join(".nvm/versions/node")) {
+            let mut bins: Vec<PathBuf> = versions
+                .filter_map(Result::ok)
+                .map(|entry| entry.path().join("bin"))
+                .collect();
+            bins.sort();
+            bins.reverse(); // Prefer the newest version.
+            dirs.extend(bins);
         }
     }
-    None
+    dirs.extend(["/opt/homebrew/bin", "/usr/local/bin"].map(PathBuf::from));
+
+    let mut seen = std::collections::HashSet::new();
+    dirs.retain(|dir| seen.insert(dir.clone()));
+    dirs
+}
+
+fn executable_path(name: &str) -> Option<PathBuf> {
+    search_dirs()
+        .into_iter()
+        .map(|dir| dir.join(name))
+        .find(|candidate| candidate.is_file())
+}
+
+/// PATH handed to every CLI we launch. npm-installed CLIs are `#!/usr/bin/env
+/// node` scripts, so finding `codex` is not enough: `node` must resolve too.
+fn child_path() -> Option<std::ffi::OsString> {
+    std::env::join_paths(search_dirs()).ok()
+}
+
+/// Which harness CLIs are installed, so the UI can default to one that exists.
+#[tauri::command]
+pub fn harness_status() -> HashMap<String, bool> {
+    [Harness::Codex, Harness::OpenCode, Harness::ClaudeCode]
+        .into_iter()
+        .map(|h| {
+            let id = match h {
+                Harness::Codex => "codex",
+                Harness::OpenCode => "opencode",
+                Harness::ClaudeCode => "claude-code",
+            };
+            (id.to_string(), executable_path(h.executable()).is_some())
+        })
+        .collect()
 }
 
 fn checked_codebase(value: Option<String>) -> Result<Option<PathBuf>, String> {
@@ -272,6 +318,9 @@ fn command_with_exe(exe: &Path, state: &AgentState, message: &str) -> Command {
 
     if let Some(dir) = &state.codebase_dir {
         cmd.current_dir(dir);
+    }
+    if let Some(path) = child_path() {
+        cmd.env("PATH", path);
     }
 
     if state.harness == Harness::Codex {
@@ -795,6 +844,26 @@ mod tests {
             "WARNING: proceeding, even though we could not create PATH aliases: read-only"
         ));
         assert!(!benign_cli_notice("authentication failed"));
+    }
+
+    #[test]
+    fn searches_install_dirs_a_finder_launch_would_miss() {
+        let dirs = search_dirs();
+        assert!(dirs.contains(&PathBuf::from("/opt/homebrew/bin")));
+        assert!(dirs.contains(&PathBuf::from("/usr/local/bin")));
+        if let Some(home) = std::env::var_os("HOME").map(PathBuf::from) {
+            assert!(dirs.contains(&home.join(".local/bin")));
+        }
+        let unique: std::collections::HashSet<_> = dirs.iter().collect();
+        assert_eq!(unique.len(), dirs.len(), "search dirs must not repeat");
+    }
+
+    #[test]
+    fn reports_every_harness() {
+        let status = harness_status();
+        for id in ["codex", "opencode", "claude-code"] {
+            assert!(status.contains_key(id), "missing {id}");
+        }
     }
 
     #[test]

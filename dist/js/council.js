@@ -20,6 +20,14 @@ window.Council = (function () {
   const INTERJECT_AFTER_MS = 2000;
   const INTERJECT_POLL_MS = 500;
 
+  // Polls to wait between one member cutting in and the next one trying
+  // (about a second), so a pile-on builds voice by voice.
+  const INTERJECT_SPACING_POLLS = 2;
+
+  // Members talking at once in a debate unless the chair raises it: the
+  // speaker plus one interjector.
+  const DEFAULT_OVERLAP = 2;
+
   // Global damping on top of each persona's own eagerness, so overlap stays
   // occasional rather than routine. Raising this makes the room rowdier.
   const INTERJECT_BASE = 0.6;
@@ -476,31 +484,40 @@ window.Council = (function () {
    * streaming at once is the overlap; the existing barge-in logic then decides
    * who actually loses the floor.
    */
-  function scheduleInterjection(all, speaker) {
-    const handle = { timer: null, used: false, cancel() { clearTimers(handle); } };
-    if (!session.opts.bargeIn) return handle;
+  function scheduleInterjection(all, speaker, maxInterjectors) {
+    const handle = { timer: null, count: 0, cancel() { clearTimers(handle); } };
+    if (!session.opts.bargeIn || maxInterjectors < 1) return handle;
+    if (!all.some((rt) => rt !== speaker && interruptiveness(rt) > 0)) return handle;
 
-    const candidates = all.filter(
-      (rt) => rt !== speaker && !rt.active && interruptiveness(rt) > 0
-    );
-    if (!candidates.length) return handle;
-
-    // Hold off until the speaker is genuinely mid-thought, then take exactly
-    // one personality-weighted roll. Polling matters: at any single fixed
-    // moment the speaker may not have said enough yet, and giving up then
-    // means nobody ever cuts in. Rolling once — rather than once per tick —
-    // keeps interrupting a chance rather than an eventual certainty.
+    // Hold off until the speaker is genuinely mid-thought, then take one
+    // personality-weighted roll per overlap slot. Polling matters: at any
+    // single fixed moment the speaker may not have said enough yet, and giving
+    // up then means nobody ever cuts in. A fixed number of rolls — rather than
+    // one per tick — keeps interrupting a chance rather than an eventual
+    // certainty. Rolls are spaced out so a pile-on arrives voice by voice
+    // instead of everyone starting in the same instant.
+    const rolled = new Set();
+    let rolls = 0;
+    let cooldown = 0;
     const attempt = () => {
       if (!session || !session.running) return clearTimers(handle);
       if (speaker.state !== 'streaming') return clearTimers(handle);
       if (speaker.buffer.length < MIN_CHARS_BEFORE_INTERRUPT) return;
+      if (cooldown > 0) { cooldown -= 1; return; }
 
-      clearTimers(handle);
+      const candidates = all.filter(
+        (rt) => rt !== speaker && !rt.active && !rolled.has(rt) && interruptiveness(rt) > 0
+      );
       const pick = weightedPick(candidates);
-      if (!pick || pick.active) return;
+      if (!pick) return clearTimers(handle);
+
+      rolled.add(pick);
+      rolls += 1;
+      cooldown = INTERJECT_SPACING_POLLS;
+      if (rolls >= maxInterjectors) clearTimers(handle);
       if (Math.random() >= interruptiveness(pick) * INTERJECT_BASE) return;
 
-      handle.used = true;
+      handle.count += 1;
       startTurn(
         pick,
         Prompt.interject(unseenFor(pick), speaker.persona.name, speaker.buffer),
@@ -514,6 +531,15 @@ window.Council = (function () {
     }, INTERJECT_AFTER_MS);
 
     return handle;
+  }
+
+  /**
+   * How many members may cut in over one speaker. `overlap` is the chair's
+   * "talking at once" setting, the speaker included; 2 is one interjector.
+   */
+  function interjectorLimit(overlap, memberCount) {
+    const atOnce = Math.min(memberCount, Math.max(1, Number(overlap) || DEFAULT_OVERLAP));
+    return atOnce - 1;
   }
 
   async function runConversation(opts, ctx) {
@@ -546,10 +572,10 @@ window.Council = (function () {
       lastSpeakerId = speaker.persona.id;
       taken += 1;
 
-      const interjection = scheduleInterjection(all, speaker);
+      const interjection = scheduleInterjection(all, speaker, interjectorLimit(opts.overlap, all.length));
       await waitForRound();
       if (interjection.cancel) interjection.cancel();
-      if (interjection.used) taken += 1;
+      taken += interjection.count;
     }
   }
 
@@ -648,6 +674,7 @@ window.Council = (function () {
   const __test = {
     weightedPick,
     interruptiveness,
+    interjectorLimit,
     pickSpeaker,
     similarity,
     isDegenerate,

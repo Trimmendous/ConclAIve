@@ -51,6 +51,7 @@ node test/dynamics.test.js
 node test/matching.test.js
 node test/harness.test.js
 node test/verdict.test.js
+node test/resources.test.js
 ```
 
 ## Future

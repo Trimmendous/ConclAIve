@@ -65,6 +65,8 @@ window.Bridge = (function () {
       interrupt: (agentId) => invoke('agent_interrupt', { agentId }),
       kill: (agentId) => invoke('agent_kill', { agentId }),
       killAll: () => invoke('agent_kill_all'),
+      harnessStatus: () => invoke('harness_status'),
+      systemResources: () => invoke('system_resources'),
     };
   })();
 
@@ -236,6 +238,21 @@ window.Bridge = (function () {
         Array.from(agents.keys()).forEach((id) => this.kill(id));
         return Promise.resolve();
       },
+      // The mock can stand in for any CLI, so every harness counts as installed.
+      harnessStatus() {
+        return Promise.resolve({ codex: true, opencode: true, 'claude-code': true });
+      },
+      // A roomy machine by default. `?mem=<MB>` fakes the free memory so the
+      // strain warning can be exercised without a struggling computer.
+      systemResources() {
+        const mem = Number(params.get('mem'));
+        return Promise.resolve({
+          total_memory_mb: 16384,
+          available_memory_mb: mem > 0 ? mem : 8192,
+          logical_cpus: 8,
+          load_average: 1.0,
+        });
+      },
     };
   })();
 
@@ -250,5 +267,7 @@ window.Bridge = (function () {
     interrupt: (...a) => impl.interrupt(...a),
     kill: (...a) => impl.kill(...a),
     killAll: () => impl.killAll(),
+    harnessStatus: () => impl.harnessStatus(),
+    systemResources: () => impl.systemResources(),
   };
 })();

@@ -51,8 +51,36 @@ window.Personas = (function () {
     return MODELS_BY_HARNESS[harness] ? harness : null;
   }
 
+  // Which harness CLIs exist on this machine; null until the backend reports.
+  // While unknown, everything counts as installed so nothing is hidden.
+  let installed = null;
+
+  /** Preferred order when choosing a harness on the user's behalf. */
+  const HARNESS_ORDER = ['claude-code', 'codex', 'opencode'];
+
+  function setInstalled(status) {
+    installed = status && typeof status === 'object' ? status : null;
+  }
+
+  function isInstalled(harness) {
+    return !installed || installed[harness] === true;
+  }
+
+  /** `preferred` if it is installed, else the first installed harness, else `preferred`. */
+  function usableHarness(preferred) {
+    if (MODELS_BY_HARNESS[preferred] && isInstalled(preferred)) return preferred;
+    return HARNESS_ORDER.find(isInstalled) || preferred || 'claude-code';
+  }
+
+  /**
+   * A member's own harness choice wins, unless that CLI is not installed here
+   * (for example persona settings carried over from another machine), in which
+   * case they quietly follow the council default instead of failing to start.
+   */
   function effectiveHarness(persona, selectedDefault) {
-    return harnessOverride(persona) || selectedDefault || 'codex';
+    const own = harnessOverride(persona);
+    if (own && isInstalled(own)) return own;
+    return usableHarness(selectedDefault);
   }
 
   function setHarness(personaId, harness) {
@@ -355,6 +383,10 @@ window.Personas = (function () {
     harnessOverride,
     effectiveHarness,
     setHarness,
+    setInstalled,
+    isInstalled,
+    usableHarness,
+    HARNESS_ORDER,
     EFFORTS,
     TUNING,
     INTERRUPT_STYLES,

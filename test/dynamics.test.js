@@ -236,5 +236,11 @@ for (let turn = 0; turn < 60; turn++) {
 check('talkative member gets the floor most', tally.loud > tally.mid && tally.mid > tally.quiet, JSON.stringify(tally));
 check('quiet member is never starved', tally.quiet > 0, `quiet spoke ${tally.quiet || 0} times`);
 
+// --- overlap: how many may cut in over one speaker -----------------------------
+check('default overlap allows one interjector', T.interjectorLimit(undefined, 5) === 1);
+check('overlap 4 allows three interjectors', T.interjectorLimit(4, 5) === 3);
+check('everyone is capped by the council size', T.interjectorLimit(99, 5) === 4);
+check('overlap 1 means nobody cuts in', T.interjectorLimit(1, 5) === 0);
+
 console.log(failures ? `\n${failures} FAILED` : '\nall dynamics tests passed');
 process.exit(failures ? 1 : 0);

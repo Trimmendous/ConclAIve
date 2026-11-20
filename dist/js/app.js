@@ -15,6 +15,7 @@
     view: 'live',
     rounds: 3,
     bargeIn: true,
+    overlap: 2,
     codebaseDir: '',
     verdict: true,
     harness: 'codex',
@@ -60,6 +61,44 @@
   function defaultModel(harness) {
     const id = harness || settings.harness;
     return settings.harnessModels[id] || Personas.DEFAULT_MODELS[id];
+  }
+
+  const HARNESS_LABELS = { codex: 'Codex', opencode: 'OpenCode', 'claude-code': 'Claude Code' };
+
+  /** Marks harnesses whose CLI is missing on this machine, and stops them being picked. */
+  function markInstalled(select) {
+    Array.from(select.options).forEach((o) => {
+      const missing = !Personas.isInstalled(o.value);
+      o.disabled = missing;
+      o.textContent = HARNESS_LABELS[o.value] + (missing ? ' (not installed)' : '');
+    });
+  }
+
+  /**
+   * Asks the backend which CLIs exist and moves the council default onto one
+   * that does. Without this a fresh install defaults to Codex, and every
+   * member fails on a machine that only has, say, Claude Code.
+   */
+  async function detectHarnesses() {
+    let status = null;
+    try { status = await Bridge.harnessStatus(); } catch (e) { console.warn('harness detection failed', e); }
+    Personas.setInstalled(status);
+    if (!status) return;
+
+    const usable = Personas.usableHarness(settings.harness);
+    if (usable !== settings.harness && Personas.isInstalled(usable)) {
+      settings.harness = usable;
+      save();
+    }
+    if (!Personas.HARNESS_ORDER.some(Personas.isInstalled)) {
+      const note = el('div', 'notice');
+      note.appendChild(el('strong', null, 'No AI CLI found. '));
+      note.appendChild(document.createTextNode(
+        'ConclAIve runs its members through Claude Code (`claude`), Codex (`codex`) or OpenCode (`opencode`). ' +
+        'Install and sign in to at least one, then restart the app.'
+      ));
+      $('stage').appendChild(note);
+    }
   }
 
   function fillModelChoices(host, harness) {
@@ -330,11 +369,9 @@
     const harness = $('pe-harness');
     harness.textContent = '';
     Object.keys(Personas.MODELS_BY_HARNESS).forEach((id) => {
-      const label = id === 'claude-code'
-        ? 'Claude Code'
-        : id.charAt(0).toUpperCase() + id.slice(1);
-      harness.appendChild(new Option(label, id));
+      harness.appendChild(new Option(HARNESS_LABELS[id] || id, id));
     });
+    markInstalled(harness);
     harness.value = p ? Personas.effectiveHarness(p, settings.harness) : settings.harness;
     fillPersonaModelSelect($('pe-model'), p, harness.value);
 
@@ -563,6 +600,76 @@
     await Council.synthesize();
   }
 
+  // --- hardware check -----------------------------------------------------
+
+  // A milder warning that does not block convening; shown once the stage is
+  // mounted, because mounting clears whatever was on it.
+  let startNotice = null;
+
+  /**
+   * Weighs the planned council against the machine's spare memory and CPU.
+   * Resolves true to go ahead. Anything that goes wrong reading the machine
+   * lets the council start: a missing estimate must never block the app.
+   */
+  async function checkHardware(members) {
+    let res = null;
+    try { res = await Bridge.systemResources(); } catch (e) { console.warn('resource check failed', e); }
+    if (!res) return true;
+
+    const plan = {
+      mode: settings.mode,
+      rounds: Number(settings.rounds) || 3,
+      // Without barge-in nobody cuts in, so only the speaker is ever running.
+      overlap: settings.bargeIn ? Number(settings.overlap) || 2 : 1,
+      codebase: !!settings.codebaseDir,
+      harnesses: members.map((p) => Personas.effectiveHarness(p, settings.harness)),
+    };
+    const a = Resources.assess(plan, res);
+    if (a.level === 'heavy') {
+      startNotice = `${a.reasons.join(' ')} The council will still run, but your computer may feel slower until it finishes.`;
+      return true;
+    }
+    if (a.level !== 'strain') return true;
+    return confirmStrain(a, plan);
+  }
+
+  function confirmStrain(a, plan) {
+    const fill = (id, items) => {
+      $(id).textContent = '';
+      items.forEach((t) => $(id).appendChild(el('li', null, t)));
+    };
+    const kind = plan.mode === 'solo' ? 'Solo critique' : 'Debate';
+    $('strain-summary').textContent =
+      `${kind} with ${plan.harnesses.length} members runs up to ${a.peakProcesses} AI ` +
+      `${a.peakProcesses === 1 ? 'process' : 'processes'} at once, over about ${a.turns} turns.`;
+    fill('strain-reasons', a.reasons);
+    fill('strain-advice', a.advice);
+    $('modal-strain').hidden = false;
+    $('strain-cancel').focus();
+
+    return new Promise((resolve) => {
+      const done = (go) => {
+        $('modal-strain').hidden = true;
+        $('strain-go').onclick = $('strain-cancel').onclick = null;
+        document.removeEventListener('keydown', onKey);
+        resolve(go);
+      };
+      const onKey = (e) => { if (e.key === 'Escape') done(false); };
+      $('strain-go').onclick = () => done(true);
+      $('strain-cancel').onclick = () => done(false);
+      document.addEventListener('keydown', onKey);
+    });
+  }
+
+  function showStartNotice() {
+    if (!startNotice) return;
+    const note = el('div', 'notice');
+    note.appendChild(el('strong', null, 'Heavy council. '));
+    note.appendChild(document.createTextNode(startNotice));
+    $('stage').appendChild(note);
+    startNotice = null;
+  }
+
   // --- session ------------------------------------------------------------
 
   async function convene() {
@@ -578,8 +685,16 @@
       return;
     }
 
+    if (running) return;
+    $('btn-convene').disabled = true; // No double convene while the check runs.
+    startNotice = null;
+    const go = await checkHardware(members);
+    if (!go) {
+      $('btn-convene').disabled = false;
+      return;
+    }
+
     running = true;
-    $('btn-convene').disabled = true;
     syncSynth();
     renderRoster();
 
@@ -599,6 +714,7 @@
         mode: settings.mode,
         rounds: Number(settings.rounds) || 3,
         bargeIn: !!settings.bargeIn,
+        overlap: Number(settings.overlap) || 2,
         codebaseDir: settings.codebaseDir || null,
         verdict: settings.verdict !== false,
         harness: settings.harness,
@@ -632,7 +748,7 @@
   // --- wiring -------------------------------------------------------------
 
   function wireCouncil() {
-    Council.on('start', ({ session }) => mountView(session));
+    Council.on('start', ({ session }) => { mountView(session); showStartNotice(); });
     Council.on('entry', ({ entry }) => view && view.onEntry(entry));
     Council.on('delta', ({ entry }) => view && view.onDelta(entry));
     Council.on('tool', ({ entry }) => view && view.onTool(entry));
@@ -780,16 +896,21 @@
     let draftModels = null;
     $('btn-settings').onclick = () => {
       draftModels = Object.assign({}, settings.harnessModels);
+      markInstalled($('set-harness'));
       $('set-harness').value = settings.harness;
       $('set-harness').dataset.previous = settings.harness;
       $('set-default-model').value = defaultModel();
       fillModelChoices($('set-model-options'), settings.harness);
       $('set-rounds').value = String(settings.rounds);
       $('set-bargein').value = settings.bargeIn ? 'on' : 'off';
+      $('set-overlap').value = String(settings.overlap || 2);
+      $('set-overlap').disabled = !settings.bargeIn;
       $('set-codebase').value = settings.codebaseDir || '';
       $('set-verdict').value = settings.verdict === false ? 'off' : 'on';
       $('modal-settings').hidden = false;
     };
+    // Overlap only exists through barge-in, so the control follows it.
+    $('set-bargein').onchange = () => { $('set-overlap').disabled = $('set-bargein').value !== 'on'; };
     $('set-harness').onchange = () => {
       const previous = $('set-harness').dataset.previous;
       if (previous) draftModels[previous] = $('set-default-model').value.trim();
@@ -807,6 +928,7 @@
       settings.harnessModels[harness] = model || Personas.DEFAULT_MODELS[harness];
       settings.rounds = Number($('set-rounds').value);
       settings.bargeIn = $('set-bargein').value === 'on';
+      settings.overlap = Number($('set-overlap').value) || 2;
       settings.codebaseDir = $('set-codebase').value.trim();
       settings.verdict = $('set-verdict').value === 'on';
       save();
@@ -826,6 +948,7 @@
     $('mock-badge').hidden = !Bridge.isMock;
     await initThemes();
     personas = await Personas.loadAll();
+    await detectHarnesses();
     if (!localStorage.getItem(ENABLED_KEY)) {
       // First run: convene everyone, so the app has something to show.
       personas.forEach((p) => enabled.add(p.id));

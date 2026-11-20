@@ -1,4 +1,5 @@
 mod agent;
+mod system;
 
 use agent::AgentRegistry;
 
@@ -12,6 +13,8 @@ pub fn run() {
             agent::agent_interrupt,
             agent::agent_kill,
             agent::agent_kill_all,
+            agent::harness_status,
+            system::system_resources,
             agent::devlog,
         ])
         .run(tauri::generate_context!())

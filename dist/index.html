@@ -122,6 +122,19 @@
         </select>
       </div>
     </div>
+    <div class="field">
+      <label for="set-overlap">Talking at once (debate)</label>
+      <select id="set-overlap">
+        <option value="2" selected>2 — the speaker and one interrupter</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6">6</option>
+        <option value="99">Everyone — a free-for-all</option>
+      </select>
+      <span class="note">How many members can speak at the same time when barge-in is on. Higher
+        is rowdier and runs more AI processes at once.</span>
+    </div>
 
     <div class="field">
       <label for="set-codebase">Codebase access (read-only)</label>
@@ -252,6 +265,21 @@
   </div>
 </div>
 
+<div class="modal" id="modal-strain" hidden>
+  <div class="sheet" role="alertdialog" aria-labelledby="strain-title" aria-describedby="strain-summary">
+    <h2 id="strain-title">This council may strain your computer</h2>
+    <p id="strain-summary" class="strain-summary"></p>
+    <ul id="strain-reasons" class="strain-list"></ul>
+    <p class="strain-sub">You could:</p>
+    <ul id="strain-advice" class="strain-list"></ul>
+    <p class="strain-fine">Memory use per AI process is an estimate. Your computer won't break, but it may slow down or swap.</p>
+    <div class="sheet-actions">
+      <button id="strain-cancel">Cancel</button>
+      <button class="primary" id="strain-go">Convene anyway</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal" id="modal-share" hidden>
   <div class="sheet">
     <h2 id="share-title">Share personas</h2>
@@ -277,6 +305,7 @@
 <script src="js/personas.js"></script>
 <script src="js/prompt.js"></script>
 <script src="js/council.js"></script>
+<script src="js/resources.js"></script>
 <script src="js/views/live.js"></script>
 <script src="js/views/transcript.js"></script>
 <script src="js/app.js"></script>

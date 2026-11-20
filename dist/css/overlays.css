@@ -13,6 +13,11 @@
 .field textarea { min-height: 120px; resize: vertical; font-family: var(--font-ui); }
 .field .note { font-size: 11px; color: var(--text-faint); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.strain-summary { margin: 0 0 10px; font-size: 13.5px; }
+.strain-list { margin: 0 0 12px; padding-left: 18px; font-size: 13px; }
+.strain-list li { margin-bottom: 4px; }
+.strain-sub { margin: 0 0 4px; font-size: 12px; color: var(--text-dim); }
+.strain-fine { margin: 0; font-size: 11px; color: var(--text-faint); }
 .sheet-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
 .action-spacer { flex: 1; }
 .flush-note { margin: 0; }
