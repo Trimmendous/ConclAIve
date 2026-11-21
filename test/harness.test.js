@@ -32,15 +32,26 @@ expect('Claude model override is isolated', P.effectiveModel(persona, 'claude-co
 expect('Codex model override is isolated', P.effectiveModel(persona, 'codex'), 'gpt-6-astra');
 expect('OpenCode still uses its default', P.effectiveModel(persona, 'opencode'), P.DEFAULT_MODELS.opencode);
 
-// Only Claude Code installed: defaults and stale overrides must land on it.
+// Only Claude Code installed: nothing to choose, so it is used.
 P.setInstalled({ codex: false, opencode: false, 'claude-code': true });
-expect('missing default falls back to an installed harness', P.usableHarness('codex'), 'claude-code');
+expect('a single installed CLI is used', P.usableHarness('codex'), 'claude-code');
+expect('nothing chosen yet still lands on the only CLI', P.usableHarness(null), 'claude-code');
 P.setHarness('other-persona', 'opencode');
 expect('override to a missing CLI follows the council default',
-  P.effectiveHarness({ id: 'other-persona' }, 'codex'), 'claude-code');
+  P.effectiveHarness({ id: 'other-persona' }, 'claude-code'), 'claude-code');
 expect('override to an installed CLI is kept', P.effectiveHarness(persona, 'codex'), 'claude-code');
+
+// Several installed: an installed choice stands, and nothing is picked for the chair.
 P.setInstalled({ codex: true, opencode: false, 'claude-code': true });
-expect('installed default is respected', P.usableHarness('codex'), 'codex');
+expect('installed choice is respected', P.usableHarness('codex'), 'codex');
+expect('several installed and none chosen picks nothing', P.usableHarness(null), null);
+expect('several installed and a missing choice picks nothing', P.usableHarness('opencode'), null);
+expect('installed list has no preference order', P.installedHarnesses().join(','), 'codex,claude-code');
+
+// None installed.
+P.setInstalled({ codex: false, opencode: false, 'claude-code': false });
+expect('no CLI means no harness', P.usableHarness('codex'), null);
+
 P.setInstalled(null);
 expect('unknown status hides nothing', P.isInstalled('opencode'), true);
 

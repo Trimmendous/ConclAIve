@@ -18,7 +18,8 @@
     overlap: 2,
     codebaseDir: '',
     verdict: true,
-    harness: 'codex',
+    harness: null, // Settled at start-up from the CLIs actually installed.
+    harnessChosen: false,
     harnessModels: {
       codex: 'gpt-5.6-terra',
       opencode: 'openai/gpt-5.6-terra',
@@ -32,7 +33,7 @@
     DEFAULTS.harnessModels,
     settings.harnessModels || {}
   );
-  if (!Personas.MODELS_BY_HARNESS[settings.harness]) settings.harness = 'codex';
+  if (!Personas.MODELS_BY_HARNESS[settings.harness]) settings.harness = null;
   let personas = [];
   let enabled = new Set(loadArray(ENABLED_KEY) || []);
   let view = null;
@@ -74,31 +75,68 @@
     });
   }
 
+  // True when the machine has none of the supported CLIs. Convene refuses to
+  // start rather than failing member by member.
+  let noHarness = false;
+
+  const NO_HARNESS_TEXT =
+    'ConclAIve runs its members through Claude Code (`claude`), Codex (`codex`) or OpenCode (`opencode`). ' +
+    'Install and sign in to at least one, then restart ConclAIve.';
+
+  function showNoHarness() {
+    const note = el('div', 'notice');
+    note.appendChild(el('strong', null, 'No AI CLI found. '));
+    note.appendChild(document.createTextNode(NO_HARNESS_TEXT));
+    $('stage').appendChild(note);
+  }
+
   /**
-   * Asks the backend which CLIs exist and moves the council default onto one
-   * that does. Without this a fresh install defaults to Codex, and every
-   * member fails on a machine that only has, say, Claude Code.
+   * Settles which CLI the council uses. One installed: use it, there is
+   * nothing to choose. Several: the chair picks, once, and the choice is
+   * remembered; the app never ranks one vendor above another. None: an error,
+   * and Convene stays blocked.
    */
   async function detectHarnesses() {
     let status = null;
     try { status = await Bridge.harnessStatus(); } catch (e) { console.warn('harness detection failed', e); }
-    Personas.setInstalled(status);
-    if (!status) return;
+    Personas.setInstalled(status); // Unknown status counts every CLI as present.
 
-    const usable = Personas.usableHarness(settings.harness);
-    if (usable !== settings.harness && Personas.isInstalled(usable)) {
-      settings.harness = usable;
-      save();
+    const present = Personas.installedHarnesses();
+    noHarness = present.length === 0;
+    if (noHarness) {
+      settings.harness = null;
+      showNoHarness();
+      return;
     }
-    if (!Personas.HARNESS_ORDER.some(Personas.isInstalled)) {
-      const note = el('div', 'notice');
-      note.appendChild(el('strong', null, 'No AI CLI found. '));
-      note.appendChild(document.createTextNode(
-        'ConclAIve runs its members through Claude Code (`claude`), Codex (`codex`) or OpenCode (`opencode`). ' +
-        'Install and sign in to at least one, then restart the app.'
-      ));
-      $('stage').appendChild(note);
+    if (present.length === 1) {
+      if (settings.harness !== present[0]) { settings.harness = present[0]; save(); }
+      return;
     }
+    if (settings.harnessChosen && present.includes(settings.harness)) return;
+    // Unattended runs pass their own harness and must not wait on a dialog.
+    if (new URLSearchParams(location.search).has('autotest')) return;
+
+    settings.harness = await chooseHarness(present);
+    settings.harnessChosen = true;
+    save();
+  }
+
+  /** Blocking first-run picker: resolves with the harness the chair clicked. */
+  function chooseHarness(present) {
+    const host = $('harness-choices');
+    host.textContent = '';
+    $('modal-harness').hidden = false;
+    return new Promise((resolve) => {
+      present.forEach((id) => {
+        const b = el('button', 'harness-choice', HARNESS_LABELS[id]);
+        b.onclick = () => {
+          $('modal-harness').hidden = true;
+          resolve(id);
+        };
+        host.appendChild(b);
+      });
+      host.firstChild.focus();
+    });
   }
 
   function fillModelChoices(host, harness) {
@@ -113,8 +151,13 @@
 
   function fillPersonaModelSelect(select, persona, selectedHarness) {
     const harness = selectedHarness || Personas.effectiveHarness(persona, settings.harness);
-    const fallback = defaultModel(harness);
     select.textContent = '';
+    if (!harness) {
+      select.appendChild(new Option('No AI CLI installed', 'default'));
+      select.disabled = true;
+      return;
+    }
+    const fallback = defaultModel(harness);
     select.appendChild(new Option(`Default — ${fallback}`, 'default'));
     Personas.modelsFor(harness).forEach((m) => select.appendChild(new Option(m.label, m.id)));
     const override = persona && Personas.modelOverride(persona, harness);
@@ -195,9 +238,9 @@
       const mrow = el('div', 'model-row');
       const sel = el('select');
       const harness = Personas.effectiveHarness(p, settings.harness);
-      sel.title = `Model this member uses through ${harness}`;
+      sel.title = harness ? `Model this member uses through ${HARNESS_LABELS[harness]}` : 'No AI CLI installed';
       fillPersonaModelSelect(sel, p, harness);
-      sel.disabled = running;
+      sel.disabled = running || !harness;
       sel.onchange = () => Personas.setModel(p.id, sel.value, harness);
       mrow.appendChild(sel);
 
@@ -675,6 +718,10 @@
   async function convene() {
     const prompt = $('prompt').value.trim();
     if (!prompt) return;
+    if (noHarness || !settings.harness) {
+      if (!$('stage').querySelector('.notice')) showNoHarness();
+      return;
+    }
     const members = personas.filter((p) => enabled.has(p.id));
     if (!members.length) {
       $('stage').textContent = '';
@@ -923,7 +970,10 @@
     $('set-close').onclick = () => {
       const harness = $('set-harness').value;
       const model = $('set-default-model').value.trim();
-      settings.harness = harness;
+      if (harness && Personas.isInstalled(harness)) {
+        settings.harness = harness;
+        settings.harnessChosen = true;
+      }
       settings.harnessModels = Object.assign({}, draftModels || settings.harnessModels);
       settings.harnessModels[harness] = model || Personas.DEFAULT_MODELS[harness];
       settings.rounds = Number($('set-rounds').value);

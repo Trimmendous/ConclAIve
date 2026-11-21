@@ -55,8 +55,12 @@ window.Personas = (function () {
   // While unknown, everything counts as installed so nothing is hidden.
   let installed = null;
 
-  /** Preferred order when choosing a harness on the user's behalf. */
-  const HARNESS_ORDER = ['claude-code', 'codex', 'opencode'];
+  /** Every supported harness. No order of preference: the chair picks. */
+  const HARNESSES = Object.keys(MODELS_BY_HARNESS);
+
+  function installedHarnesses() {
+    return HARNESSES.filter(isInstalled);
+  }
 
   function setInstalled(status) {
     installed = status && typeof status === 'object' ? status : null;
@@ -66,10 +70,15 @@ window.Personas = (function () {
     return !installed || installed[harness] === true;
   }
 
-  /** `preferred` if it is installed, else the first installed harness, else `preferred`. */
+  /**
+   * `preferred` if it is installed. Otherwise the one installed harness when
+   * there is exactly one, since then there is nothing to choose. Otherwise
+   * null: with several installed the chair decides, never this code.
+   */
   function usableHarness(preferred) {
     if (MODELS_BY_HARNESS[preferred] && isInstalled(preferred)) return preferred;
-    return HARNESS_ORDER.find(isInstalled) || preferred || 'claude-code';
+    const present = installedHarnesses();
+    return present.length === 1 ? present[0] : null;
   }
 
   /**
@@ -386,7 +395,8 @@ window.Personas = (function () {
     setInstalled,
     isInstalled,
     usableHarness,
-    HARNESS_ORDER,
+    installedHarnesses,
+    HARNESSES,
     EFFORTS,
     TUNING,
     INTERRUPT_STYLES,

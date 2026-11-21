@@ -13,6 +13,8 @@
 .field textarea { min-height: 120px; resize: vertical; font-family: var(--font-ui); }
 .field .note { font-size: 11px; color: var(--text-faint); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.harness-choices { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px; }
+.harness-choice { flex: 1 1 140px; padding: 12px; font-size: 14px; }
 .strain-summary { margin: 0 0 10px; font-size: 13.5px; }
 .strain-list { margin: 0 0 12px; padding-left: 18px; font-size: 13px; }
 .strain-list li { margin-bottom: 4px; }
